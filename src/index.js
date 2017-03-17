@@ -53,21 +53,27 @@ function save(logEvents, idx, logGroup, callback) {
 
   var current = new Date();
   var logEvent = logEvents[idx];
-  var message = null;
+  var logMessage = null;
   try {
-    message = JSON.parse(logEvent.message);
+    logMessage = JSON.parse(logEvent.message);
   }
   catch(err) {
     console.log(`JSON parse error in [${logEvent.message}]`);
     return callback(null, false);
   }
+  if (logMessage.images) {
+    logMessage.message += "\n\nPlease review below for more detail.";
+    logMessage.images.forEach(function(image) {
+      logMessage.message += `\n${image}`;
+    });
+  }
   var item = {
       "id": {"S": logEvent.id},
-      "awsid": {"S": message.awsid},
-      "subject": {"S": message.subject},
-      "message": {"S": message.message},
-      "sentBy": {"S": message.sentBy},
-      "sentAt": {"S": message.sentAt},
+      "awsid": {"S": logMessage.awsid},
+      "subject": {"S": logMessage.subject},
+      "message": {"S": logMessage.message},
+      "sentBy": {"S": logMessage.sentBy},
+      "sentAt": {"S": logMessage.sentAt},
       "createdAt": {"S": current.toISOString()},
       "updatedAt": {"S": current.toISOString()},
       "account": {"N": '0'},

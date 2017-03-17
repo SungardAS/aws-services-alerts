@@ -62,7 +62,7 @@ function sendSlackMessage(logEvents, idx, logGroup, callback) {
     console.log(`JSON parse error in [${logEvent.message}]`);
     return callback(null, false);
   }
-  var message = buildMessage(logMessage.awsid, logMessage.message);
+  var message = buildMessage(logMessage.awsid, logMessage.subject, logMessage.message, logMessage.images);
   if (hookUrl) {
     // Container reuse, simply process the event with the key in memory
     processEvent(message, function(err, data) {
@@ -156,10 +156,10 @@ function processEvent(slackMessage, callback) {
   });
 }
 
-function buildMessage(accountId, message) {
+function buildMessage(accountId, subject, message, images) {
   var message = {
     icon_emoji: ":postbox:",
-    "text": "New Health Alert!",
+    "text": subject,
     "attachments": [
       {
         "text": message,
@@ -183,5 +183,13 @@ function buildMessage(accountId, message) {
       }
     ]
   };
+  if (images) {
+    images.forEach(function(image) {
+      message.attachments.push({
+        "image_url": image,
+        "color": "warning"
+      });
+    });
+  }
   return message;
 }
