@@ -97,7 +97,7 @@ Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: AlexOugh-Alerts
+      FunctionName: SungardAS-Alerts
       Handler: index.handler
       Runtime: nodejs4.3
       CodeUri: ./src
@@ -160,7 +160,7 @@ Resources:
   SlackFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: AlexOugh-Alerts-Slack
+      FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
       Runtime: nodejs4.3
       CodeUri: ./src
