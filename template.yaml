@@ -2,6 +2,10 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Lambda functions for Alert Process
 Parameters:
+  PrimaryRegion:
+    Type: String
+    Default: "us-east-1"
+    Description: Primary Region Name
   AlertKinesisDestinationName:
     Type: String
     Default: "alertDestination"
@@ -18,9 +22,12 @@ Parameters:
     Type: String
     Default: "#health"
     Description: Slack Channel Name
+Conditions:
+ IsPrimaryRegion: !Equals [!Ref PrimaryRegion, "us-east-1"]
 Resources:
   EncryptionDecryptionKey:
     Type: AWS::KMS::Key
+    Condition: IsPrimaryRegion
     Properties:
       Description: "Encryption and Decryption key for Lambda"
       KeyPolicy:
@@ -53,6 +60,7 @@ Resources:
             Resource: '*'
   LambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
+    Condition: IsPrimaryRegion
     Properties:
       Path: "/"
       AssumeRolePolicyDocument:
@@ -96,6 +104,7 @@ Resources:
                 Resource: !GetAtt Stream.Arn
   LambdaFunction:
     Type: AWS::Serverless::Function
+    Condition: IsPrimaryRegion
     Properties:
       FunctionName: SungardAS-Alerts
       Handler: index.handler
@@ -114,10 +123,12 @@ Resources:
             StartingPosition: TRIM_HORIZON
   Stream:
     Type: AWS::Kinesis::Stream
+    Condition: IsPrimaryRegion
     Properties:
       ShardCount: 1
   SlackLambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
+    Condition: IsPrimaryRegion
     Properties:
       Path: "/"
       AssumeRolePolicyDocument:
@@ -159,6 +170,7 @@ Resources:
                 Resource: !GetAtt Stream.Arn
   SlackFunction:
     Type: AWS::Serverless::Function
+    Condition: IsPrimaryRegion
     Properties:
       FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
@@ -180,6 +192,7 @@ Resources:
             StartingPosition: TRIM_HORIZON
   CWLtoKinesisRole:
     Type: "AWS::IAM::Role"
+    Condition: IsPrimaryRegion
     Properties:
       Path: "/"
       AssumeRolePolicyDocument:
@@ -192,13 +205,23 @@ Resources:
               - "sts:AssumeRole"
             Principal:
               Service:
-                - !Join
-                  - "."
-                  - - "logs"
-                    - !Ref AWS::Region
-                    - "amazonaws.com"
+                - "logs.us-east-1.amazonaws.com"
+                - "logs.us-east-2.amazonaws.com"
+                - "logs.us-west-1.amazonaws.com"
+                - "logs.us-west-2.amazonaws.com"
+                - "logs.ca-central-1.amazonaws.com"
+                - "logs.ap-south-1.amazonaws.com"
+                - "logs.ap-northeast-2.amazonaws.com"
+                - "logs.ap-southeast-1.amazonaws.com"
+                - "logs.ap-southeast-2.amazonaws.com"
+                - "logs.ap-northeast-1.amazonaws.com"
+                - "logs.eu-central-1.amazonaws.com"
+                - "logs.eu-west-1.amazonaws.com"
+                - "logs.eu-west-2.amazonaws.com"
+                - "logs.sa-east-1.amazonaws.com"
   CWLtoKinesisRolePolicy:
     Type: "AWS::IAM::Policy"
+    Condition: IsPrimaryRegion
     Properties:
       PolicyName: "CWLtoKinesisRolePolicy"
       Roles:
