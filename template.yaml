@@ -2,10 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Lambda functions for Alert Process
 Parameters:
-  PrimaryRegion:
-    Type: String
-    Default: "us-east-1"
-    Description: Primary Region Name
   AlertKinesisDestinationName:
     Type: String
     Default: "alertDestination"
@@ -22,12 +18,9 @@ Parameters:
     Type: String
     Default: "#health"
     Description: Slack Channel Name
-Conditions:
- IsPrimaryRegion: !Equals [!Ref PrimaryRegion, "us-east-1"]
 Resources:
   EncryptionDecryptionKey:
     Type: AWS::KMS::Key
-    Condition: IsPrimaryRegion
     Properties:
       Description: "Encryption and Decryption key for Lambda"
       KeyPolicy:
@@ -60,7 +53,6 @@ Resources:
             Resource: '*'
   LambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
-    Condition: IsPrimaryRegion
     Properties:
       Path: "/"
       AssumeRolePolicyDocument:
@@ -104,7 +96,6 @@ Resources:
                 Resource: !GetAtt Stream.Arn
   LambdaFunction:
     Type: AWS::Serverless::Function
-    Condition: IsPrimaryRegion
     Properties:
       FunctionName: SungardAS-Alerts
       Handler: index.handler
@@ -123,12 +114,10 @@ Resources:
             StartingPosition: TRIM_HORIZON
   Stream:
     Type: AWS::Kinesis::Stream
-    Condition: IsPrimaryRegion
     Properties:
       ShardCount: 1
   SlackLambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
-    Condition: IsPrimaryRegion
     Properties:
       Path: "/"
       AssumeRolePolicyDocument:
@@ -170,7 +159,6 @@ Resources:
                 Resource: !GetAtt Stream.Arn
   SlackFunction:
     Type: AWS::Serverless::Function
-    Condition: IsPrimaryRegion
     Properties:
       FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
@@ -192,7 +180,6 @@ Resources:
             StartingPosition: TRIM_HORIZON
   CWLtoKinesisRole:
     Type: "AWS::IAM::Role"
-    Condition: IsPrimaryRegion
     Properties:
       Path: "/"
       AssumeRolePolicyDocument:
@@ -221,7 +208,6 @@ Resources:
                 - "logs.sa-east-1.amazonaws.com"
   CWLtoKinesisRolePolicy:
     Type: "AWS::IAM::Policy"
-    Condition: IsPrimaryRegion
     Properties:
       PolicyName: "CWLtoKinesisRolePolicy"
       Roles:
@@ -257,6 +243,48 @@ Resources:
           - ":destination:"
           - !Ref AlertKinesisDestinationName
           - "\"}]}"
+  DestinationSetupFunctionIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action:
+              - "sts:AssumeRole"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        -
+          PolicyName: "InlinePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*"
+              -
+                Effect: "Allow"
+                Action:
+                  - "cloudwatchlogs:*"
+                Resource: "*"
+  DestinationSetupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SungardAS-Alerts-Destination
+      Handler: index_destination.handler
+      Runtime: nodejs4.3
+      CodeUri: ./src
+      Role: !GetAtt DestinationSetupFunctionIAMRole.Arn
+      Timeout: 60
 
 Outputs:
   LambdaFunction:
@@ -265,6 +293,9 @@ Outputs:
   SlackAlertLambdaFunction:
     Description: "Slack Alert Lambda Function ARN"
     Value: !GetAtt SlackFunction.Arn
+  DestinationSetupLambdaFunction:
+    Description: "Destination Setup Lambda Function ARN"
+    Value: !GetAtt DestinationSetupFunction.Arn
   EncryptionDecryptionKeyId:
     Description: "Encryption Decryption KMS Key Id"
     Value: !Ref EncryptionDecryptionKey
