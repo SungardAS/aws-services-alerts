@@ -47,6 +47,24 @@ After populating the const variables in test.js, run below command
 
     $ node tests/test.js
 
+## How To Add a New Region
+
+- Add a new region in 'CWLtoKinesisRole' in `template.yaml` and update the stack
+
+- Run the lambda function, `SungardAS-Alerts-Destination`
+
+
+
+
+## How To Add a New Account
+
+- Run the lambda function, `SungardAS-Alerts-Destination` with `accounts` values including the new account id
+
+
+
+
+
+
 ## [![Sungard Availability Services | Labs][labs-logo]][labs-github-url]
 
 This project is maintained by the Labs group at [Sungard Availability

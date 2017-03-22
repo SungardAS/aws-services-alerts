@@ -234,9 +234,9 @@ Resources:
       TargetArn: !GetAtt Stream.Arn
       DestinationPolicy: !Join
         - ""
-        - - "{\"Version\" : \"2012-10-17\",\"Statement\" : [{\"Effect\" : \"Allow\", \"Principal\" : {\"AWS\" : \""
+        - - "{\"Version\" : \"2012-10-17\",\"Statement\" : [{\"Effect\" : \"Allow\", \"Principal\" : {\"AWS\" : [\""
           - !Ref AWS::AccountId
-          - "\"},\"Action\" : \"logs:PutSubscriptionFilter\", \"Resource\" : \"arn:aws:logs:"
+          - "\"]},\"Action\" : \"logs:PutSubscriptionFilter\", \"Resource\" : \"arn:aws:logs:"
           - !Ref AWS::Region
           - ":"
           - !Ref AWS::AccountId
@@ -274,7 +274,9 @@ Resources:
               -
                 Effect: "Allow"
                 Action:
-                  - "cloudwatchlogs:*"
+                  - "ec2:*"
+                  - "logs:*"
+                  - "iam:PassRole"
                 Resource: "*"
   DestinationSetupFunction:
     Type: AWS::Serverless::Function
@@ -285,6 +287,12 @@ Resources:
       CodeUri: ./src
       Role: !GetAtt DestinationSetupFunctionIAMRole.Arn
       Timeout: 60
+      Environment:
+        Variables:
+          ACCOUNT_ID: !Ref AWS::AccountId
+          DESTINATION_NAME: !Ref AlertKinesisDestinationName
+          ROLE_ARN: !GetAtt CWLtoKinesisRole.Arn
+          TARGET_ARN: !GetAtt Stream.Arn
 
 Outputs:
   LambdaFunction:
