@@ -27,8 +27,9 @@ function alert(records, idx, callback) {
   zlib.gunzip(payload, function (err, data) {
     if (err)    callback(err);
     else {
-      const decompressed = JSON.parse(data.toString('ascii'));
-      console.log(`Decompressed record - ${JSON.stringify(decompressed)}`);
+      var str = data.toString();
+      console.log(`Decompressed record - ${str}`);
+      const decompressed = JSON.parse(str);
       save(decompressed.logEvents, 0, decompressed.logGroup, function(err, data) {
         if (err) {
           callback(err, null);
