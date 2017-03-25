@@ -93,7 +93,7 @@ Resources:
                   - "kinesis:GetRecords"
                   - "kinesis:GetShardIterator"
                   - "kinesis:ListStreams"
-                Resource: !GetAtt Stream.Arn
+                Resource: !GetAtt AlertStream.Arn
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -110,9 +110,9 @@ Resources:
         Stream:
           Type: Kinesis
           Properties:
-            Stream: !GetAtt Stream.Arn
+            Stream: !GetAtt AlertStream.Arn
             StartingPosition: TRIM_HORIZON
-  Stream:
+  AlertStream:
     Type: AWS::Kinesis::Stream
     Properties:
       ShardCount: 1
@@ -156,7 +156,7 @@ Resources:
                   - "kinesis:GetRecords"
                   - "kinesis:GetShardIterator"
                   - "kinesis:ListStreams"
-                Resource: !GetAtt Stream.Arn
+                Resource: !GetAtt AlertStream.Arn
   SlackFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -176,7 +176,7 @@ Resources:
         Stream:
           Type: Kinesis
           Properties:
-            Stream: !GetAtt Stream.Arn
+            Stream: !GetAtt AlertStream.Arn
             StartingPosition: TRIM_HORIZON
   CWLtoKinesisRole:
     Type: "AWS::IAM::Role"
@@ -219,80 +219,12 @@ Resources:
             Effect: "Allow"
             Action:
               - "kinesis:PutRecord"
-            Resource: !GetAtt Stream.Arn
+            Resource: !GetAtt AlertStream.Arn
           -
             Effect: "Allow"
             Action:
               - "iam:PassRole"
             Resource: !GetAtt CWLtoKinesisRole.Arn
-  CloudWatchDestination:
-    Type: AWS::Logs::Destination
-    DependsOn: CWLtoKinesisRolePolicy
-    Properties:
-      DestinationName: !Ref AlertKinesisDestinationName
-      RoleArn: !GetAtt CWLtoKinesisRole.Arn
-      TargetArn: !GetAtt Stream.Arn
-      DestinationPolicy: !Join
-        - ""
-        - - "{\"Version\" : \"2012-10-17\",\"Statement\" : [{\"Effect\" : \"Allow\", \"Principal\" : {\"AWS\" : [\""
-          - !Ref AWS::AccountId
-          - "\"]},\"Action\" : \"logs:PutSubscriptionFilter\", \"Resource\" : \"arn:aws:logs:"
-          - !Ref AWS::Region
-          - ":"
-          - !Ref AWS::AccountId
-          - ":destination:"
-          - !Ref AlertKinesisDestinationName
-          - "\"}]}"
-  DestinationSetupFunctionIAMRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      Path: "/"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          -
-            Sid: "AllowLambdaServiceToAssumeRole"
-            Effect: "Allow"
-            Action:
-              - "sts:AssumeRole"
-            Principal:
-              Service:
-                - "lambda.amazonaws.com"
-      Policies:
-        -
-          PolicyName: "InlinePolicy"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              -
-                Effect: "Allow"
-                Action:
-                  - "logs:CreateLogGroup"
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
-                Resource: "arn:aws:logs:*:*:*"
-              -
-                Effect: "Allow"
-                Action:
-                  - "ec2:*"
-                  - "logs:*"
-                  - "iam:PassRole"
-                Resource: "*"
-  DestinationSetupFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: SungardAS-Alerts-Destination
-      Handler: index_destination.handler
-      Runtime: nodejs4.3
-      CodeUri: ./src
-      Role: !GetAtt DestinationSetupFunctionIAMRole.Arn
-      Timeout: 60
-      Environment:
-        Variables:
-          ACCOUNT_ID: !Ref AWS::AccountId
-          DESTINATION_NAME: !Ref AlertKinesisDestinationName
-          ROLE_ARN: !GetAtt CWLtoKinesisRole.Arn
-          TARGET_ARN: !GetAtt Stream.Arn
 
 Outputs:
   LambdaFunction:
@@ -301,15 +233,12 @@ Outputs:
   SlackAlertLambdaFunction:
     Description: "Slack Alert Lambda Function ARN"
     Value: !GetAtt SlackFunction.Arn
-  DestinationSetupLambdaFunction:
-    Description: "Destination Setup Lambda Function ARN"
-    Value: !GetAtt DestinationSetupFunction.Arn
   EncryptionDecryptionKeyId:
     Description: "Encryption Decryption KMS Key Id"
     Value: !Ref EncryptionDecryptionKey
   KinesisStreamArn:
-    Description: "Kinesis Stream ARN"
-    Value: !GetAtt Stream.Arn
-  CloudWatchDestinationName:
-    Description: "CloudWatch Destination Name"
-    Value: !Ref CloudWatchDestination
+    Description: "Kinesis Alert Stream ARN"
+    Value: !GetAtt AlertStream.Arn
+  CWLtoKinesisRoleArn:
+    Description: "CloudwatchLogs to Kinesis Role ARN"
+    Value: !GetAtt CWLtoKinesisRole.Arn

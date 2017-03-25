@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Destination To Alert Kinesis Stream
+Parameters:
+  Accounts:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Comma Separated AWS Accounts To Be Allowed To Alet Destinations. If Not Specified, Only The Current Account Will Be Added.
+  AlertKinesisDestinationName:
+    Type: String
+    Default: "alertDestination"
+    Description: Alert Kinesis Destination Name
+  KinesisStreamArn:
+    Type: String
+    Default: ""
+    Description: Alert Kinesis Stream Arn. Provided Only If This Region Is NOT Primary Region
+  CWLtoKinesisRoleArn:
+    Type: String
+    Default: ""
+    Description: CloudwatchLogs To Kinesis Role Arn. Provided Only If This Region Is NOT Primary Region
+Conditions:
+  HasAccountsToAdd: !Not [!Equals [!Join [ ",", !Ref Accounts ], ""]]
+Resources:
+  CloudWatchDestination:
+    Type: AWS::Logs::Destination
+    Properties:
+      DestinationName: !Ref AlertKinesisDestinationName
+      RoleArn: !Ref CWLtoKinesisRoleArn
+      TargetArn: !Ref KinesisStreamArn
+      DestinationPolicy: !Join
+        - ""
+        - - "{\"Version\" : \"2012-10-17\",\"Statement\" : [{\"Effect\" : \"Allow\", \"Principal\" : {\"AWS\" : [\""
+          - !If [HasAccountsToAdd, !Join [ "\",\"", !Ref Accounts ], !Ref "AWS::AccountId"]
+          - "\"]},\"Action\" : \"logs:PutSubscriptionFilter\", \"Resource\" : \"arn:aws:logs:"
+          - !Ref AWS::Region
+          - ":"
+          - !Ref AWS::AccountId
+          - ":destination:"
+          - !Ref AlertKinesisDestinationName
+          - "\"}]}"
