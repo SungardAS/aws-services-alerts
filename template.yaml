@@ -225,6 +225,23 @@ Resources:
             Action:
               - "iam:PassRole"
             Resource: !GetAtt CWLtoKinesisRole.Arn
+  CloudWatchDestination:
+    Type: AWS::Logs::Destination
+    Properties:
+      DestinationName: !Ref AlertKinesisDestinationName
+      RoleArn: !GetAtt CWLtoKinesisRole.Arn
+      TargetArn: !GetAtt AlertStream.Arn
+      DestinationPolicy: !Join
+        - ""
+        - - "{\"Version\" : \"2012-10-17\",\"Statement\" : [{\"Effect\" : \"Allow\", \"Principal\" : {\"AWS\" : [\""
+          - !Ref "AWS::AccountId"
+          - "\"]},\"Action\" : \"logs:PutSubscriptionFilter\", \"Resource\" : \"arn:aws:logs:"
+          - !Ref AWS::Region
+          - ":"
+          - !Ref AWS::AccountId
+          - ":destination:"
+          - !Ref AlertKinesisDestinationName
+          - "\"}]}"
 
 Outputs:
   LambdaFunction:
