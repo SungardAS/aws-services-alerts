@@ -8,7 +8,7 @@ Parameters:
     Description: Alert Kinesis Destination Name
   AlertMessageDynamoDBTableName:
     Type: String
-    Default: "alertmessages"
+    Default: ""
     Description: DynamoDB Table Name to Store Alert Messages
   SlackWebHookUrl:
     Type: String
@@ -16,8 +16,10 @@ Parameters:
     Description: Slack Webhook Url
   SlackChannel:
     Type: String
-    Default: "#health"
+    Default: "#alert"
     Description: Slack Channel Name
+Conditions:
+  NullAlertMessageDynamoDBTableName: !Not [!Equals [!Ref AlertMessageDynamoDBTableName, ""]]
 Resources:
   EncryptionDecryptionKey:
     Type: AWS::KMS::Key
@@ -105,7 +107,7 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
-          DYNAMODB_TABLE_NAME: !Ref AlertMessageDynamoDBTableName
+          DYNAMODB_TABLE_NAME: !If [NullAlertMessageDynamoDBTableName, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
       Events:
         Stream:
           Type: Kinesis
@@ -227,6 +229,7 @@ Resources:
             Resource: !GetAtt CWLtoKinesisRole.Arn
   CloudWatchDestination:
     Type: AWS::Logs::Destination
+    DependsOn: CWLtoKinesisRolePolicy
     Properties:
       DestinationName: !Ref AlertKinesisDestinationName
       RoleArn: !GetAtt CWLtoKinesisRole.Arn
@@ -242,6 +245,16 @@ Resources:
           - ":destination:"
           - !Ref AlertKinesisDestinationName
           - "\"}]}"
+  AlertMessageTable:
+    Type: AWS::Serverless::SimpleTable
+    Condition: "NullAlertMessageDynamoDBTableName"
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
 
 Outputs:
   LambdaFunction:
@@ -259,3 +272,6 @@ Outputs:
   CWLtoKinesisRoleArn:
     Description: "CloudwatchLogs to Kinesis Role ARN"
     Value: !GetAtt CWLtoKinesisRole.Arn
+  AlertMessageTableName:
+    Description: "CloudwatchLogs to Kinesis Role ARN"
+    Value: !If [NullAlertMessageDynamoDBTableName, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
