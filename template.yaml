@@ -13,11 +13,15 @@ Parameters:
   SlackWebHookUrl:
     Type: String
     NoEcho: true
-    Description: Slack Webhook Url
+    Description: Slack Webhook Url without 'https://'
   SlackChannel:
     Type: String
     Default: "#alert"
     Description: Slack Channel Name
+  TeamsWebHookUrl:
+    Type: String
+    NoEcho: true
+    Description: Teams Webhook Url without 'https://'
 Conditions:
   IsAlertMessageDynamoDBTableNameNull: !Equals [!Ref AlertMessageDynamoDBTableName, ""]
 Resources:
@@ -43,7 +47,7 @@ Resources:
             Action:
               - "kms:Encrypt"
             Principal:
-              AWS: !GetAtt SlackLambdaFunctionIAMRole.Arn
+              AWS: !GetAtt MessengerLambdaFunctionIAMRole.Arn
             Resource: '*'
           -
             Sid: "Allow Decryption Service to use this key"
@@ -51,7 +55,7 @@ Resources:
             Action:
               - "kms:Decrypt"
             Principal:
-              AWS: !GetAtt SlackLambdaFunctionIAMRole.Arn
+              AWS: !GetAtt MessengerLambdaFunctionIAMRole.Arn
             Resource: '*'
   LambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
@@ -118,7 +122,7 @@ Resources:
     Type: AWS::Kinesis::Stream
     Properties:
       ShardCount: 1
-  SlackLambdaFunctionIAMRole:
+  MessengerLambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
       Path: "/"
@@ -161,13 +165,12 @@ Resources:
                 Resource: !GetAtt AlertStream.Arn
   SlackFunction:
     Type: AWS::Serverless::Function
-    DependsOn: LambdaFunction
     Properties:
       FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
       Runtime: nodejs4.3
       CodeUri: ./src
-      Role: !GetAtt SlackLambdaFunctionIAMRole.Arn
+      Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
       Timeout: 300
       Environment:
         Variables:
@@ -175,6 +178,27 @@ Resources:
           KMS_KEY_ID: !Ref EncryptionDecryptionKey
           SLACK_HOOK_URL: !Ref SlackWebHookUrl
           SLACK_CHANNEL: !Ref SlackChannel
+      Events:
+        Stream:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt AlertStream.Arn
+            StartingPosition: TRIM_HORIZON
+  TeamsFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: LambdaFunction
+    Properties:
+      FunctionName: SungardAS-Alerts-Teams
+      Handler: index_teams.handler
+      Runtime: nodejs4.3
+      CodeUri: ./src
+      Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          KMS_REGION: !Ref AWS::Region
+          KMS_KEY_ID: !Ref EncryptionDecryptionKey
+          TEAMS_HOOK_URL: !Ref TeamsWebHookUrl
       Events:
         Stream:
           Type: Kinesis
