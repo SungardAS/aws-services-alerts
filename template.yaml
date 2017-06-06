@@ -19,7 +19,7 @@ Parameters:
     Default: "#alert"
     Description: Slack Channel Name
 Conditions:
-  NullAlertMessageDynamoDBTableName: !Not [!Equals [!Ref AlertMessageDynamoDBTableName, ""]]
+  IsAlertMessageDynamoDBTableNameNull: !Equals [!Ref AlertMessageDynamoDBTableName, ""]
 Resources:
   EncryptionDecryptionKey:
     Type: AWS::KMS::Key
@@ -107,7 +107,7 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
-          DYNAMODB_TABLE_NAME: !If [NullAlertMessageDynamoDBTableName, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
+          DYNAMODB_TABLE_NAME: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
       Events:
         Stream:
           Type: Kinesis
@@ -161,6 +161,7 @@ Resources:
                 Resource: !GetAtt AlertStream.Arn
   SlackFunction:
     Type: AWS::Serverless::Function
+    DependsOn: LambdaFunction
     Properties:
       FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
@@ -229,7 +230,7 @@ Resources:
             Resource: !GetAtt CWLtoKinesisRole.Arn
   CloudWatchDestination:
     Type: AWS::Logs::Destination
-    DependsOn: CWLtoKinesisRolePolicy
+    DependsOn: SlackFunction
     Properties:
       DestinationName: !Ref AlertKinesisDestinationName
       RoleArn: !GetAtt CWLtoKinesisRole.Arn
@@ -246,12 +247,17 @@ Resources:
           - !Ref AlertKinesisDestinationName
           - "\"}]}"
   AlertMessageTable:
-    Type: AWS::Serverless::SimpleTable
-    Condition: "NullAlertMessageDynamoDBTableName"
+    Type: AWS::DynamoDB::Table
+    Condition: IsAlertMessageDynamoDBTableNameNull
     Properties:
-      PrimaryKey:
-        Name: id
-        Type: String
+      AttributeDefinitions:
+        -
+          AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "id"
+          KeyType: "HASH"
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
@@ -273,5 +279,5 @@ Outputs:
     Description: "CloudwatchLogs to Kinesis Role ARN"
     Value: !GetAtt CWLtoKinesisRole.Arn
   AlertMessageTableName:
-    Description: "CloudwatchLogs to Kinesis Role ARN"
-    Value: !If [NullAlertMessageDynamoDBTableName, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
+    Description: "Alert Message DynamoDB Table Name"
+    Value: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
