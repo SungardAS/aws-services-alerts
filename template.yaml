@@ -305,3 +305,6 @@ Outputs:
   AlertMessageTableName:
     Description: "Alert Message DynamoDB Table Name"
     Value: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
+  SubscriptionFilterDestinationName:
+    Description: "Subscription Filter Destination Name To Send Alert Messages"
+    Value: !Ref AlertKinesisDestinationName
