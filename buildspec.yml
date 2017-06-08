@@ -10,9 +10,11 @@ phases:
          --template-file template.yaml
          --s3-bucket $S3_BUCKET_NAME
          --output-template-file samTemplate.yaml
-      - aws s3 cp `./src/node_modules/yaml-cli/libexec/yaml get samTemplate.yaml Resources.LambdaFunction.Properties.CodeUri` s3://876224653878-sungardas-aws-services-alerts-s3-eu-west-1  --acl public-read
-      - sed -i "s/$S3_BUCKET_NAME/876224653878-sungardas-aws-services-alerts-s3-eu-west-1/g" samTemplate.yaml
-      - aws s3 cp ./samTemplate.yaml s3://876224653878-sungardas-aws-services-alerts-s3-eu-west-1 --acl public-read
+  post_build:
+    commands:
+      - s3 cp `./src/node_modules/yaml-cli/libexec/yaml get samTemplate.yaml Resources.LambdaFunction.Properties.CodeUri` s3://$S3_SHARED_BUCKET_NAME  --acl public-read
+      - sed -i "s/$S3_BUCKET_NAME/$S3_SHARED_BUCKET_NAME/g" samTemplate.yaml
+      - aws s3 cp ./samTemplate.yaml s3://$S3_SHARED_BUCKET_NAME/`python -c 'import sys,uuid; sys.stdout.write(uuid.uuid4().hex)' | pbcopy && pbpaste && echo`.yaml --acl public-read
 artifacts:
   type: zip
   files:
