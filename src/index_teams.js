@@ -13,14 +13,36 @@ console.log('Loading function');
 
 exports.handler = (event, context, callback) => {
   console.log('Received event:', JSON.stringify(event, null, 2));
-  alert(event.Records, 0, function(err, data) {
-    if (err) {
-      callback(err, null);
-    }
-    else {
-      callback(null, `Successfully processed ${event.Records.length} records.`);
-    }
-  });
+  if (!hookUrl && teamsWebHookUrl && teamsWebHookUrl !== '') {
+    const encryptedBuf = new Buffer(teamsWebHookUrl, 'base64');
+    const cipherText = { CiphertextBlob: encryptedBuf };
+    const kms = new AWS.KMS({region:process.env.KMS_REGION});
+    kms.decrypt(cipherText).promise().then(function(data) {
+      hookUrl = `https://${data.Plaintext.toString('ascii')}`;
+    }).catch(function(err) {
+      console.log('Decrypt error, so just use raw hook url:', err);
+      hookUrl = `https://${teamsWebHookUrl}`;
+    }).then(function(data) {
+      alert(event.Records, 0, function(err, data) {
+        if (err) {
+          callback(err, null);
+        }
+        else {
+          callback(null, `Successfully processed ${event.Records.length} records.`);
+        }
+      });
+    });
+  }
+  else {
+    alert(event.Records, 0, function(err, data) {
+      if (err) {
+        callback(err, null);
+      }
+      else {
+        callback(null, `Successfully processed ${event.Records.length} records.`);
+      }
+    });
+  }
 };
 
 function alert(records, idx, callback) {
@@ -78,32 +100,6 @@ function sendTeamsMessage(logEvents, idx, logGroup, callback) {
           sendTeamsMessage(logEvents, idx, logGroup, callback);
         }
       }
-    });
-  }
-  else if (teamsWebHookUrl && teamsWebHookUrl !== '') {
-    const encryptedBuf = new Buffer(teamsWebHookUrl, 'base64');
-    const cipherText = { CiphertextBlob: encryptedBuf };
-    const kms = new AWS.KMS({region:process.env.KMS_REGION});
-    kms.decrypt(cipherText, (err, data) => {
-      if (err) {
-        console.log('Decrypt error:', err);
-        return callback(err);
-      }
-      hookUrl = `https://${data.Plaintext.toString('ascii')}`;
-      processEvent(message, function(err, data) {
-        if (err) {
-          console.log("failed to send logEvents[" + idx + "] to Teams : " + err);
-          callback(err, null);
-        }
-        else {
-          if (++idx == logEvents.length) {
-            callback(null, true);
-          }
-          else {
-            sendTeamsMessage(logEvents, idx, logGroup, callback);
-          }
-        }
-      });
     });
   }
   else {
