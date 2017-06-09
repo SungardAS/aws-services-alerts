@@ -37,7 +37,7 @@ Input Parameter Values
 
 - GitHubSourceRepositoryOwner: `SungardAS`
 
-- ParameterOverrides: `{ "AlertKinesisDestinationName": "alertDestination", "AlertMessageDynamoDBTableName": "alertmessages", "SlackWebHookUrl": "<slack_web_hook_url>", "SlackChannel": "<#slack_channel>" }`
+- ParameterOverrides: `{ "AlertKinesisDestinationName": "alertDestination", "AlertMessageDynamoDBTableName": "<message_table_name_if_exists>", "SlackWebHookUrl": "<slack_web_hook_url>", "SlackChannel": "<#slack_channel>", "TeamsWebHookUrl": "<teams_web_hook_url>" }`
 
 - ProjectImage: `aws/codebuild/nodejs:4.3.2`
 

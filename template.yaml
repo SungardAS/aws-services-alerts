@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Lambda functions for Alert Process
+Description: SAM Cloudformation for Alert System
 Parameters:
   AlertKinesisDestinationName:
     Type: String
