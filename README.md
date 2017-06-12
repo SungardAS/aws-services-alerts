@@ -41,6 +41,8 @@ Input Parameter Values
 
 - ProjectImage: `aws/codebuild/nodejs:4.3.2`
 
+- S3SharedBucketName: `<target_s3_bucket_name if you want to copy artifact, otherwise, leave empty>`
+
 ## How To Test Lambda Function
 
 After populating the const variables in test.js, run below command
