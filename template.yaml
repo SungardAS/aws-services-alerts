@@ -227,6 +227,7 @@ Resources:
             Resource: !GetAtt CWLtoKinesisRole.Arn
   CloudWatchDestination:
     Type: AWS::Logs::Destination
+    DependsOn: SlackFunction
     Properties:
       DestinationName: !Ref AlertKinesisDestinationName
       RoleArn: !GetAtt CWLtoKinesisRole.Arn
