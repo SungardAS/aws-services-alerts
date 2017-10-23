@@ -31,7 +31,7 @@
 #   "Effect": "Allow"
 # }
 
-# OR use "codepipeline_s3.yaml" cloudformation when building its pipeline stack
+# OR use "codepipeline_with_shared_bucket.yaml" cloudformation when building its pipeline stack
 
 
 if [ "$S3_SHARED_BUCKET_NAME" != "" ];
