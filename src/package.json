@@ -10,6 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "aws-sdk": "^2.22.0",
-    "aws-services-lib": "https://github.com/SungardAS/aws-services-lib.git#master"
+    "node-uuid": "^1.4.7"
   }
 }

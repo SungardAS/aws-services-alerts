@@ -63,7 +63,7 @@ function sendSlackMessage(logEvents, idx, logGroup, callback) {
     console.log(`JSON parse error in [${logEvent.message}]`);
     return callback(null, false);
   }
-  var message = buildMessage(logMessage.awsid, logMessage.subject, logMessage.message, logMessage.images);
+  var message = buildMessage(logMessage.awsid, logMessage.region, logMessage.subject, logMessage.message, logMessage.images);
   if (hookUrl) {
     // Container reuse, simply process the event with the key in memory
     processEvent(message, function(err, data) {
@@ -82,29 +82,20 @@ function sendSlackMessage(logEvents, idx, logGroup, callback) {
     });
   }
   else if (slackWebHookUrl && slackWebHookUrl !== '') {
-    const encryptedBuf = new Buffer(slackWebHookUrl, 'base64');
-    const cipherText = { CiphertextBlob: encryptedBuf };
-    const kms = new AWS.KMS({region:process.env.KMS_REGION});
-    kms.decrypt(cipherText, (err, data) => {
+    hookUrl = `https://${slackWebHookUrl}`;
+    processEvent(message, function(err, data) {
       if (err) {
-        console.log('Decrypt error:', err);
-        return callback(err);
+        console.log("failed to send logEvents[" + idx + "] to Slack : " + err);
+        callback(err, null);
       }
-      hookUrl = `https://${data.Plaintext.toString('ascii')}`;
-      processEvent(message, function(err, data) {
-        if (err) {
-          console.log("failed to send logEvents[" + idx + "] to Slack : " + err);
-          callback(err, null);
+      else {
+        if (++idx == logEvents.length) {
+          callback(null, true);
         }
         else {
-          if (++idx == logEvents.length) {
-            callback(null, true);
-          }
-          else {
-            sendSlackMessage(logEvents, idx, logGroup, callback);
-          }
+          sendSlackMessage(logEvents, idx, logGroup, callback);
         }
-      });
+      }
     });
   }
   else {
@@ -157,7 +148,7 @@ function processEvent(slackMessage, callback) {
   });
 }
 
-function buildMessage(accountId, subject, message, images) {
+function buildMessage(accountId, region, subject, message, images) {
   var message = {
     icon_emoji: ":postbox:",
     "text": subject,
@@ -171,11 +162,11 @@ function buildMessage(accountId, subject, message, images) {
               "value": accountId,
               "short": true
           },
-          /*{
-              "title": "Account Name",
-              "value": params.account.name,
+          {
+              "title": "Region",
+              "value": region,
               "short": true
-          }*/
+          }
         ],
         "author_name": "Sungard Availability Services",
         "footer": "Created By SungardAS/aws-services",

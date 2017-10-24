@@ -1,57 +1,39 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Lambda functions for Alert Process
+Description: Cloudformation to Build SungardAS Alert System
 Parameters:
-  AlertKinesisDestinationName:
+  CloudWatchLogDestinationName:
     Type: String
     Default: "alertDestination"
-    Description: Alert Kinesis Destination Name
-  AlertMessageDynamoDBTableName:
-    Type: String
-    Default: "alertmessages"
-    Description: DynamoDB Table Name to Store Alert Messages
+    Description: CloudWatch Log Destination Name To Send Alert To Kinesis Stream
   SlackWebHookUrl:
     Type: String
     NoEcho: true
     Description: Slack Webhook Url
   SlackChannel:
     Type: String
-    Default: "#health"
     Description: Slack Channel Name
+  SampleLogGroupName:
+    Type: String
+    Default: "/SungardAS/Alerts/Sample"
+    Description: Sample Cloudwatch Log Group Name
+
 Resources:
-  EncryptionDecryptionKey:
-    Type: AWS::KMS::Key
+  AlertTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      Description: "Encryption and Decryption key for Lambda"
-      KeyPolicy:
-        Id: "LambdaEncDec"
-        Version: "2012-10-17"
-        Statement:
-          -
-            Sid: "Allow administration of the key"
-            Effect: "Allow"
-            Action:
-              - "kms:*"
-            Principal:
-              AWS: !Ref AWS::AccountId
-            Resource: '*'
-          -
-            Sid: "Allow Encryption Service to use this key"
-            Effect: "Allow"
-            Action:
-              - "kms:Encrypt"
-            Principal:
-              AWS: !GetAtt SlackLambdaFunctionIAMRole.Arn
-            Resource: '*'
-          -
-            Sid: "Allow Decryption Service to use this key"
-            Effect: "Allow"
-            Action:
-              - "kms:Decrypt"
-            Principal:
-              AWS: !GetAtt SlackLambdaFunctionIAMRole.Arn
-            Resource: '*'
-  LambdaFunctionIAMRole:
+      AttributeDefinitions:
+        -
+          AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+  DynamoDBLambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
       Path: "/"
@@ -94,18 +76,18 @@ Resources:
                   - "kinesis:GetShardIterator"
                   - "kinesis:ListStreams"
                 Resource: !GetAtt AlertStream.Arn
-  LambdaFunction:
+  DynamoDBLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: SungardAS-Alerts
-      Handler: index.handler
+      FunctionName: SungardAS-Alerts-DynamoDB
+      Handler: index_dynamodb.handler
       Runtime: nodejs4.3
       CodeUri: ./src
-      Role: !GetAtt LambdaFunctionIAMRole.Arn
+      Role: !GetAtt DynamoDBLambdaFunctionIAMRole.Arn
       Timeout: 60
       Environment:
         Variables:
-          DYNAMODB_TABLE_NAME: !Ref AlertMessageDynamoDBTableName
+          DYNAMODB_TABLE_NAME: !Ref AlertTable
       Events:
         Stream:
           Type: Kinesis
@@ -168,8 +150,6 @@ Resources:
       Timeout: 300
       Environment:
         Variables:
-          KMS_REGION: !Ref AWS::Region
-          KMS_KEY_ID: !Ref EncryptionDecryptionKey
           SLACK_HOOK_URL: !Ref SlackWebHookUrl
           SLACK_CHANNEL: !Ref SlackChannel
       Events:
@@ -191,21 +171,11 @@ Resources:
             Action:
               - "sts:AssumeRole"
             Principal:
-              Service:
-                - "logs.us-east-1.amazonaws.com"
-                - "logs.us-east-2.amazonaws.com"
-                - "logs.us-west-1.amazonaws.com"
-                - "logs.us-west-2.amazonaws.com"
-                - "logs.ca-central-1.amazonaws.com"
-                - "logs.ap-south-1.amazonaws.com"
-                - "logs.ap-northeast-2.amazonaws.com"
-                - "logs.ap-southeast-1.amazonaws.com"
-                - "logs.ap-southeast-2.amazonaws.com"
-                - "logs.ap-northeast-1.amazonaws.com"
-                - "logs.eu-central-1.amazonaws.com"
-                - "logs.eu-west-1.amazonaws.com"
-                - "logs.eu-west-2.amazonaws.com"
-                - "logs.sa-east-1.amazonaws.com"
+              Service: !Join
+                - "."
+                - - "logs"
+                  - !Ref AWS::Region
+                  - "amazonaws.com"
   CWLtoKinesisRolePolicy:
     Type: "AWS::IAM::Policy"
     Properties:
@@ -229,7 +199,7 @@ Resources:
     Type: AWS::Logs::Destination
     DependsOn: SlackFunction
     Properties:
-      DestinationName: !Ref AlertKinesisDestinationName
+      DestinationName: !Ref CloudWatchLogDestinationName
       RoleArn: !GetAtt CWLtoKinesisRole.Arn
       TargetArn: !GetAtt AlertStream.Arn
       DestinationPolicy: !Join
@@ -241,22 +211,103 @@ Resources:
           - ":"
           - !Ref AWS::AccountId
           - ":destination:"
-          - !Ref AlertKinesisDestinationName
+          - !Ref CloudWatchLogDestinationName
           - "\"}]}"
+  SampleLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join
+        - "/"
+        - - !Ref SampleLogGroupName
+          - !Ref AWS::Region
+  SubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    DependsOn: SampleLogGroup
+    Properties:
+      LogGroupName: !Join
+        - "/"
+        - - !Ref SampleLogGroupName
+          - !Ref AWS::Region
+      FilterPattern: ""
+      DestinationArn: !GetAtt CloudWatchDestination.Arn
+  SampleLambdaFunctionIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action:
+              - "sts:AssumeRole"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        -
+          PolicyName: "InlinePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*"
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:*"
+                  - "cloudwatchlogs:*"
+                Resource: "*"
+  SampleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Join
+        - "-"
+        - - "SungardAS-Alerts-Sample-Alert"
+          - !Ref AWS::Region
+      Handler: index_sample_alert.handler
+      Runtime: nodejs4.3
+      CodeUri: ./src
+      Role: !GetAtt SampleLambdaFunctionIAMRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          SAMPLE_LOG_GROUP_NAME: !Join
+            - "/"
+            - - !Ref SampleLogGroupName
+              - !Ref AWS::Region
+  AccountPermissionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "SungardAS-Alerts-Account-Permission"
+      Handler: index_account_permission.handler
+      Runtime: nodejs4.3
+      CodeUri: ./src
+      Role: !GetAtt SampleLambdaFunctionIAMRole.Arn
+      Timeout: 300
 
 Outputs:
-  LambdaFunction:
-    Description: "Lambda Function ARN"
-    Value: !GetAtt LambdaFunction.Arn
+  DynamoDBLambdaFunction:
+    Description: "DynamoDB Lambda Function ARN"
+    Value: !GetAtt DynamoDBLambdaFunction.Arn
   SlackAlertLambdaFunction:
     Description: "Slack Alert Lambda Function ARN"
     Value: !GetAtt SlackFunction.Arn
-  EncryptionDecryptionKeyId:
-    Description: "Encryption Decryption KMS Key Id"
-    Value: !Ref EncryptionDecryptionKey
+  SampleAlertLambdaFunction:
+    Description: "Sample Alert Lambda Function ARN"
+    Value: !GetAtt SampleFunction.Arn
+  AccountPermissionLambdaFunction:
+    Description: "Account Permission Lambda Function ARN"
+    Value: !GetAtt AccountPermissionFunction.Arn
   KinesisStreamArn:
     Description: "Kinesis Alert Stream ARN"
     Value: !GetAtt AlertStream.Arn
-  CWLtoKinesisRoleArn:
-    Description: "CloudwatchLogs to Kinesis Role ARN"
-    Value: !GetAtt CWLtoKinesisRole.Arn
+  CloudWatchDestinationArn:
+    Description: "CloudWatch Log Destination Arn"
+    Value: !GetAtt CloudWatchDestination.Arn

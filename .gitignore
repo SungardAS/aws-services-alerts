@@ -5,3 +5,5 @@ __*
 dist
 keys.js
 *.local.*
+sam*.yaml
+*.sh

@@ -1,8 +1,12 @@
 
 'use strict';
 
+var AWS = require('aws-sdk');
 var zlib = require('zlib');
-var dynamodb = new (require('aws-services-lib/aws/dynamodb.js'))();
+
+var region = process.env.AWS_DEFAULT_REGION;
+var tableName = process.env.DYNAMODB_TABLE_NAME;
+var documentClient = new AWS.DynamoDB.DocumentClient({region: region});
 
 console.log('Loading function');
 
@@ -49,9 +53,6 @@ function alert(records, idx, callback) {
 
 function save(logEvents, idx, logGroup, callback) {
 
-  var region = process.env.AWS_DEFAULT_REGION;
-  var tableName = process.env.DYNAMODB_TABLE_NAME;
-
   var current = new Date();
   var logEvent = logEvents[idx];
   var logMessage = null;
@@ -68,36 +69,27 @@ function save(logEvents, idx, logGroup, callback) {
       logMessage.message += `\n${image}`;
     });
   }
-  var item = {
-      "id": {"S": logEvent.id},
-      "awsid": {"S": logMessage.awsid},
-      "subject": {"S": logMessage.subject},
-      "message": {"S": logMessage.message},
-      "sentBy": {"S": logMessage.sentBy},
-      "sentAt": {"S": logMessage.sentAt},
-      "createdAt": {"S": current.toISOString()},
-      "updatedAt": {"S": current.toISOString()},
-      "account": {"N": '0'},
-      "archivedBy": {"S": "none"},
-      "source": {"S": logGroup},
-      //"sequenceNumber": {"S": record.dynamodb.SequenceNumber}
-  }
-  console.log(item);
+  logMessage["id"] = logEvent.id;
+  logMessage["createdAt"] = current.toISOString();
+  logMessage["updatedAt"] = current.toISOString();
+  logMessage["source"] = logGroup;
+  console.log(logMessage);
 
-  var input = {
-    region: region,
-    tableName: tableName,
-    item: item
+  var params = {
+    Item: logMessage,
+    TableName: tableName,
+    ReturnConsumedCapacity: "TOTAL",
+    ReturnItemCollectionMetrics: "SIZE"
+    //ReturnValues: NONE | ALL_OLD | UPDATED_OLD | ALL_NEW | UPDATED_NEW
   };
-
-  dynamodb.save(input, function(err, data) {
+  documentClient.put(params, function(err, data) {
     if (err) {
       console.log("failed to save logEvents[" + idx + "] : " + err);
       callback(err, null);
     }
     else {
       if (++idx == logEvents.length) {
-        callback(null, true);
+        callback(null, idx);
       }
       else {
         save(logEvents, idx, logGroup, callback);

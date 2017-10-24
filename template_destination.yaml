@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Cloudformation to Build SungardAS Alert System - For Different Regions
+Parameters:
+  CloudWatchLogDestinationName:
+    Type: String
+    Default: "alertDestination"
+    Description: CloudWatch Log Destination Name
+  KinesisStreamArn:
+    Type: String
+    Description: Alert Kinesis Stream Arn
+  SampleLogGroupName:
+    Type: String
+    Default: "/SungardAS/Alerts/Sample"
+    Description: Sample Cloudwatch Log Group Name
+
+Resources:
+  CWLtoKinesisRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "AllowCloudwatchlogsToAssumeRole"
+            Effect: "Allow"
+            Action:
+              - "sts:AssumeRole"
+            Principal:
+              Service: !Join
+                - "."
+                - - "logs"
+                  - !Ref AWS::Region
+                  - "amazonaws.com"
+  CWLtoKinesisRolePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "CWLtoKinesisRolePolicy"
+      Roles:
+        - !Ref CWLtoKinesisRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action:
+              - "kinesis:PutRecord"
+            Resource: !Ref KinesisStreamArn
+          -
+            Effect: "Allow"
+            Action:
+              - "iam:PassRole"
+            Resource: !GetAtt CWLtoKinesisRole.Arn
+  CloudWatchDestination:
+    Type: AWS::Logs::Destination
+    DependsOn: CWLtoKinesisRolePolicy
+    Properties:
+      DestinationName: !Ref CloudWatchLogDestinationName
+      RoleArn: !GetAtt CWLtoKinesisRole.Arn
+      TargetArn: !Ref KinesisStreamArn
+      DestinationPolicy: !Join
+        - ""
+        - - "{\"Version\" : \"2012-10-17\",\"Statement\" : [{\"Effect\" : \"Allow\", \"Principal\" : {\"AWS\" : [\""
+          - !Ref "AWS::AccountId"
+          - "\"]},\"Action\" : \"logs:PutSubscriptionFilter\", \"Resource\" : \"arn:aws:logs:"
+          - !Ref AWS::Region
+          - ":"
+          - !Ref AWS::AccountId
+          - ":destination:"
+          - !Ref CloudWatchLogDestinationName
+          - "\"}]}"
+  SampleLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: CloudWatchDestination
+    Properties:
+      LogGroupName: !Join
+        - "/"
+        - - !Ref SampleLogGroupName
+          - !Ref AWS::Region
+  SubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    DependsOn: SampleLogGroup
+    Properties:
+      LogGroupName: !Join
+        - "/"
+        - - !Ref SampleLogGroupName
+          - !Ref AWS::Region
+      FilterPattern: ""
+      DestinationArn: !GetAtt CloudWatchDestination.Arn
+  SampleLambdaFunctionIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action:
+              - "sts:AssumeRole"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        -
+          PolicyName: "InlinePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*"
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:*"
+                  - "cloudwatchlogs:*"
+                Resource: "*"
+  SampleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Join
+        - "-"
+        - - "SungardAS-Alerts-Sample-Alert"
+          - !Ref AWS::Region
+      Handler: index_sample_alert.handler
+      Runtime: nodejs4.3
+      CodeUri: ./src
+      Role: !GetAtt SampleLambdaFunctionIAMRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          SAMPLE_LOG_GROUP_NAME: !Join
+            - "/"
+            - - !Ref SampleLogGroupName
+              - !Ref AWS::Region
+
+Outputs:
+  SampleAlertLambdaFunction:
+    Description: "Sample Alert Lambda Function ARN"
+    Value: !GetAtt SampleFunction.Arn
+  CloudWatchDestinationArn:
+    Description: "CloudWatch Log Destination Arn"
+    Value: !GetAtt CloudWatchDestination.Arn
