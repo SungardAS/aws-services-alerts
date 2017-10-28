@@ -79,7 +79,6 @@ Resources:
   DynamoDBLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: SungardAS-Alerts-DynamoDB
       Handler: index_dynamodb.handler
       Runtime: nodejs4.3
       CodeUri: ./src
@@ -142,7 +141,6 @@ Resources:
   SlackFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
       Runtime: nodejs4.3
       CodeUri: ./src
@@ -271,6 +269,7 @@ Resources:
         - "-"
         - - "SungardAS-Alerts-Sample-Alert"
           - !Ref AWS::Region
+          - !Ref CloudWatchLogDestinationName
       Handler: index_sample_alert.handler
       Runtime: nodejs4.3
       CodeUri: ./src
@@ -285,7 +284,10 @@ Resources:
   AccountPermissionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: "SungardAS-Alerts-Account-Permission"
+      FunctionName: !Join
+        - "-"
+        - - "SungardAS-Alerts-Permission"
+          - !Ref CloudWatchLogDestinationName
       Handler: index_account_permission.handler
       Runtime: nodejs4.3
       CodeUri: ./src

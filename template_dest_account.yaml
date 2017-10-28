@@ -69,6 +69,7 @@ Resources:
         - "-"
         - - "SungardAS-Alerts-Sample-Alert"
           - !Ref AWS::Region
+          - !Select [6, !Split [":", !Ref CloudWatchLogDestinationArn]]
       Handler: index_sample_alert.handler
       Runtime: nodejs4.3
       CodeUri: ./src
