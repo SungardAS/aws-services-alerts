@@ -4,4 +4,8 @@ node_modules
 __*
 dist
 keys.js
-*.local.*
+*.local*
+samTemplate*
+package-lock.json
+*.setup
+tests

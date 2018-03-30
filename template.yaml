@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: SAM Cloudformation for Alert System
 Parameters:
-  AlertKinesisDestinationName:
+  CloudWatchLogDestinationName:
     Type: String
     Default: "alertDestination"
     Description: Alert Kinesis Destination Name
@@ -256,7 +256,7 @@ Resources:
     Type: AWS::Logs::Destination
     DependsOn: SlackFunction
     Properties:
-      DestinationName: !Ref AlertKinesisDestinationName
+      DestinationName: !Ref CloudWatchLogDestinationName
       RoleArn: !GetAtt CWLtoKinesisRole.Arn
       TargetArn: !GetAtt AlertStream.Arn
       DestinationPolicy: !Join
@@ -268,7 +268,7 @@ Resources:
           - ":"
           - !Ref AWS::AccountId
           - ":destination:"
-          - !Ref AlertKinesisDestinationName
+          - !Ref CloudWatchLogDestinationName
           - "\"}]}"
   AlertMessageTable:
     Type: AWS::DynamoDB::Table
@@ -285,6 +285,52 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+  PermissionFunctionIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action:
+              - "sts:AssumeRole"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        -
+          PolicyName: "InlinePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*"
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:*"
+                  - "cloudwatchlogs:*"
+                Resource: "*"
+  AccountPermissionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Join
+        - "-"
+        - - "SungardAS-Alerts-Permission"
+          - !Ref CloudWatchLogDestinationName
+      Handler: index_account_permission.handler
+      Runtime: nodejs4.3
+      CodeUri: ./src
+      Role: !GetAtt PermissionFunctionIAMRole.Arn
+      Timeout: 300
 
 Outputs:
   LambdaFunction:
@@ -305,6 +351,9 @@ Outputs:
   AlertMessageTableName:
     Description: "Alert Message DynamoDB Table Name"
     Value: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
-  SubscriptionFilterDestinationName:
-    Description: "Subscription Filter Destination Name To Send Alert Messages"
-    Value: !Ref AlertKinesisDestinationName
+  CloudWatchDestinationArn:
+    Description: "CloudWatch Log Destination Arn"
+    Value: !GetAtt CloudWatchDestination.Arn
+  AccountPermissionFunction:
+    Description: "Account Permission Lambda Function ARN"
+    Value: !GetAtt AccountPermissionFunction.Arn
