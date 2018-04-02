@@ -85,7 +85,7 @@ function sendSlackMessage(logEvents, idx, logGroup, callback) {
     console.log(`JSON parse error in [${logEvent.message}]`);
     return callback(null, false);
   }
-  var message = buildMessage(logMessage.awsid, logMessage.subject, logMessage.message, logMessage.images);
+  var message = buildMessage(logMessage.awsid, logMessage.subject, logMessage.message, logMessage.images, logMessage.titles);
   if (hookUrl) {
     // Container reuse, simply process the event with the key in memory
     processEvent(message, function(err, data) {
@@ -153,7 +153,7 @@ function processEvent(slackMessage, callback) {
   });
 }
 
-function buildMessage(accountId, subject, message, images) {
+function buildMessage(accountId, subject, message, images, titles) {
   var message = {
     icon_emoji: ":postbox:",
     "text": subject,
@@ -180,6 +180,13 @@ function buildMessage(accountId, subject, message, images) {
       }
     ]
   };
+  if (titles) {
+    titles = JSON.parse(titles);
+    titles.forEach(function(title) {
+      console.log(title);
+      message.attachments[0].fields.push(title);
+    });
+  }
   if (images) {
     images.forEach(function(image) {
       message.attachments.push({
