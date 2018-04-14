@@ -1,4 +1,6 @@
 
+source .env.local
+
 cd src; npm install; cd ..
 
 aws cloudformation package \

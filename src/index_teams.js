@@ -84,7 +84,7 @@ function sendTeamsMessage(logEvents, idx, logGroup, callback) {
     console.log(`JSON parse error in [${logEvent.message}]`);
     return callback(null, false);
   }
-  var message = buildMessage(logMessage.awsid, logMessage.subject, logMessage.message, logMessage.images);
+  var message = buildMessage(logMessage.awsid, logMessage.subject, logMessage.message, logMessage.images, logMessage.titles);
   if (hookUrl) {
     // Container reuse, simply process the event with the key in memory
     processEvent(message, function(err, data) {
@@ -151,7 +151,7 @@ function processEvent(teamsMessage, callback) {
   });
 }
 
-function buildMessage(accountId, subject, message, images) {
+function buildMessage(accountId, subject, message, images, titles) {
   var message = {
     "summary": "Alert Card",
     "themeColor": "0078D7",
@@ -171,6 +171,13 @@ function buildMessage(accountId, subject, message, images) {
       }
     ]
   };
+
+  if (titles) {
+    titles.forEach(function(title) {
+      console.log(title);
+      message.sections[0].facts.push({"name": title.title, "value": title.value});
+    });
+  }
 
   if (images) {
     images.forEach(function(image) {
