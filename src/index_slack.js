@@ -181,7 +181,6 @@ function buildMessage(accountId, subject, message, images, titles) {
     ]
   };
   if (titles) {
-    titles = JSON.parse(titles);
     titles.forEach(function(title) {
       console.log(title);
       message.attachments[0].fields.push(title);
