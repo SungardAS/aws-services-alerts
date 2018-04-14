@@ -163,7 +163,7 @@ function buildMessage(accountId, subject, message, images, titles) {
         "activityImage": "https://raw.githubusercontent.com/SungardAS/aws-services-lib/master/docs/images/logo.png",
         "facts": [
           {
-            "name": "Account Id:",
+            "name": "Account Id",
             "value": accountId
           }
         ],
