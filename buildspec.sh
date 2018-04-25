@@ -14,4 +14,4 @@ aws cloudformation deploy --template-file ./samTemplate.yaml \
   --parameter-overrides CloudWatchLogDestinationName=$CLOUDWATCHLOG_DESTINATION_NAME \
   AlertMessageDynamoDBTableName=$ALERT_MESSAGE_DYNAMODB_TABLE_NAME \
   SlackWebHookUrl=$SLACK_WEBHOOK_URL SlackChannel=$SLACK_CHANNEL \
-  TeamsWebHookUrl=$TEAM_WEBHOOK_URL
+  TeamsWebHookUrl=$TEAM_WEBHOOK_URL AlertTopicSubEndpointForCTO=$ALERT_TOPIC_SUB_ENDPOINT_FOR_CTO

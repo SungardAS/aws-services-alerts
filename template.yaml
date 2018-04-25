@@ -22,6 +22,9 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Teams Webhook Url without 'https://'
+  AlertTopicSubEndpointForCTO:
+    Type: String
+    Description: Email Address for Alet Message Notification
 Conditions:
   IsAlertMessageDynamoDBTableNameNull: !Equals [!Ref AlertMessageDynamoDBTableName, ""]
 Resources:
@@ -154,6 +157,7 @@ Resources:
                 Effect: "Allow"
                 Action:
                   - "kms:*"
+                  - "sns:*"
                 Resource: "*"
               -
                 Effect: "Allow"
@@ -186,7 +190,7 @@ Resources:
             StartingPosition: TRIM_HORIZON
   TeamsFunction:
     Type: AWS::Serverless::Function
-    DependsOn: LambdaFunction
+    DependsOn: SlackFunction
     Properties:
       FunctionName: SungardAS-Alerts-Teams
       Handler: index_teams.handler
@@ -199,6 +203,25 @@ Resources:
           KMS_REGION: !Ref AWS::Region
           KMS_KEY_ID: !Ref EncryptionDecryptionKey
           TEAMS_HOOK_URL: !Ref TeamsWebHookUrl
+      Events:
+        Stream:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt AlertStream.Arn
+            StartingPosition: TRIM_HORIZON
+  TopicFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: TeamsFunction
+    Properties:
+      FunctionName: SungardAS-Alerts-Topic
+      Handler: index_sns.handler
+      Runtime: nodejs4.3
+      CodeUri: ./src
+      Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref AlertTopic
       Events:
         Stream:
           Type: Kinesis
@@ -285,6 +308,14 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+  AlertTopic:
+    Type: AWS::SNS::Topic
+  AlertTopicSubscriptionCTO:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: !Ref AlertTopicSubEndpointForCTO
+      Protocol: "email"
+      TopicArn: !Ref AlertTopic
   PermissionFunctionIAMRole:
     Type: "AWS::IAM::Role"
     Properties:

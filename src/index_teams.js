@@ -139,7 +139,7 @@ function postMessage(message, callback) {
 function processEvent(teamsMessage, callback) {
   postMessage(teamsMessage, (response) => {
     if (response.statusCode < 400) {
-      console.info('Message posted successfully');
+      console.info(`Message posted successfully: ${response.statusCode} - ${response.statusMessage}`);
       callback(null, null);
     } else if (response.statusCode < 500) {
       console.error(`Error posting message to Teams API: ${response.statusCode} - ${response.statusMessage}`);
