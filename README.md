@@ -1,13 +1,13 @@
 
-# Account Health Alert
+# Unified Serverless Alert System
 
-Lambda Functions to manage AWS Alerts
+Serverless Central System to Manage All Different Kinds of Alerts
 
 ![aws-services][aws-services-image]
 
 ## How To Setup a CodePipeline
 
-Use 'codepipeline.yaml' template to create a stack
+Use `codepipeline.yaml` template to create a stack
 
 Input Parameter Values
 
