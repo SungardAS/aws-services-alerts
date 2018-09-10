@@ -39,7 +39,7 @@ Input Parameter Values
 
 - GitHubSourceRepositoryOwner: `SungardAS`
 
-- ProjectImage: `aws/codebuild/nodejs:4.3.2`
+- ProjectImage: `aws/codebuild/nodejs:8.11.0`
 
 - SlackChannel: Slack Channel Name
 

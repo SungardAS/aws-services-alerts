@@ -108,7 +108,7 @@ Resources:
     Properties:
       FunctionName: SungardAS-Alerts
       Handler: index.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs8.10
       CodeUri: ./src
       Role: !GetAtt LambdaFunctionIAMRole.Arn
       Timeout: 60
@@ -172,7 +172,7 @@ Resources:
     Properties:
       FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs8.10
       CodeUri: ./src
       Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
       Timeout: 300
@@ -194,7 +194,7 @@ Resources:
     Properties:
       FunctionName: SungardAS-Alerts-Teams
       Handler: index_teams.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs8.10
       CodeUri: ./src
       Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
       Timeout: 300
@@ -215,7 +215,7 @@ Resources:
     Properties:
       FunctionName: SungardAS-Alerts-Topic
       Handler: index_sns.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs8.10
       CodeUri: ./src
       Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
       Timeout: 300
@@ -358,7 +358,7 @@ Resources:
         - - "SungardAS-Alerts-Permission"
           - !Ref CloudWatchLogDestinationName
       Handler: index_account_permission.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs8.10
       CodeUri: ./src
       Role: !GetAtt PermissionFunctionIAMRole.Arn
       Timeout: 300
