@@ -99,7 +99,7 @@ Resources:
     Properties:
       FunctionName: SungardAS-Alerts
       Handler: index.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs8.10
       CodeUri: ./src
       Role: !GetAtt LambdaFunctionIAMRole.Arn
       Timeout: 60
@@ -162,7 +162,7 @@ Resources:
     Properties:
       FunctionName: SungardAS-Alerts-Slack
       Handler: index_slack.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs8.10
       CodeUri: ./src
       Role: !GetAtt SlackLambdaFunctionIAMRole.Arn
       Timeout: 300
