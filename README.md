@@ -45,7 +45,11 @@ Input Parameter Values
 
 - SlackWebHookUrl: Slack Webhook Url without 'https://'
 
+release6.1
+- ProjectImage: `aws/codebuild/nodejs:8.11.0`
+
 - TeamsWebHookUrl: Teams Webhook Url without 'https://'
+
 
 ## How To Test Lambda Function
 
