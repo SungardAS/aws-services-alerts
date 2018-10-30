@@ -39,7 +39,7 @@ Input Parameter Values
 
 - ParameterOverrides: `{ "AlertKinesisDestinationName": "alertDestination", "AlertMessageDynamoDBTableName": "alertmessages", "SlackWebHookUrl": "<slack_web_hook_url>", "SlackChannel": "<#slack_channel>" }`
 
-- ProjectImage: `aws/codebuild/nodejs:4.3.2`
+- ProjectImage: `aws/codebuild/nodejs:8.11.0`
 
 ## How To Test Lambda Function
 
