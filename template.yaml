@@ -1,23 +1,32 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Lambda functions for Alert Process
+Description: SAM Cloudformation for Alert System
 Parameters:
-  AlertKinesisDestinationName:
+  CloudWatchLogDestinationName:
     Type: String
     Default: "alertDestination"
     Description: Alert Kinesis Destination Name
   AlertMessageDynamoDBTableName:
     Type: String
-    Default: "alertmessages"
+    Default: ""
     Description: DynamoDB Table Name to Store Alert Messages
   SlackWebHookUrl:
     Type: String
     NoEcho: true
-    Description: Slack Webhook Url
+    Description: Slack Webhook Url without 'https://'
   SlackChannel:
     Type: String
-    Default: "#health"
+    Default: "#alert"
     Description: Slack Channel Name
+  TeamsWebHookUrl:
+    Type: String
+    NoEcho: true
+    Description: Teams Webhook Url without 'https://'
+  AlertTopicSubEndpointForCTO:
+    Type: String
+    Description: Email Address for Alet Message Notification
+Conditions:
+  IsAlertMessageDynamoDBTableNameNull: !Equals [!Ref AlertMessageDynamoDBTableName, ""]
 Resources:
   EncryptionDecryptionKey:
     Type: AWS::KMS::Key
@@ -41,7 +50,7 @@ Resources:
             Action:
               - "kms:Encrypt"
             Principal:
-              AWS: !GetAtt SlackLambdaFunctionIAMRole.Arn
+              AWS: !GetAtt MessengerLambdaFunctionIAMRole.Arn
             Resource: '*'
           -
             Sid: "Allow Decryption Service to use this key"
@@ -49,7 +58,7 @@ Resources:
             Action:
               - "kms:Decrypt"
             Principal:
-              AWS: !GetAtt SlackLambdaFunctionIAMRole.Arn
+              AWS: !GetAtt MessengerLambdaFunctionIAMRole.Arn
             Resource: '*'
   LambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
@@ -105,7 +114,7 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
-          DYNAMODB_TABLE_NAME: !Ref AlertMessageDynamoDBTableName
+          DYNAMODB_TABLE_NAME: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
       Events:
         Stream:
           Type: Kinesis
@@ -116,7 +125,7 @@ Resources:
     Type: AWS::Kinesis::Stream
     Properties:
       ShardCount: 1
-  SlackLambdaFunctionIAMRole:
+  MessengerLambdaFunctionIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
       Path: "/"
@@ -148,6 +157,7 @@ Resources:
                 Effect: "Allow"
                 Action:
                   - "kms:*"
+                  - "sns:*"
                 Resource: "*"
               -
                 Effect: "Allow"
@@ -164,7 +174,7 @@ Resources:
       Handler: index_slack.handler
       Runtime: nodejs8.10
       CodeUri: ./src
-      Role: !GetAtt SlackLambdaFunctionIAMRole.Arn
+      Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
       Timeout: 300
       Environment:
         Variables:
@@ -172,6 +182,46 @@ Resources:
           KMS_KEY_ID: !Ref EncryptionDecryptionKey
           SLACK_HOOK_URL: !Ref SlackWebHookUrl
           SLACK_CHANNEL: !Ref SlackChannel
+      Events:
+        Stream:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt AlertStream.Arn
+            StartingPosition: TRIM_HORIZON
+  TeamsFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: SlackFunction
+    Properties:
+      FunctionName: SungardAS-Alerts-Teams
+      Handler: index_teams.handler
+      Runtime: nodejs8.10
+      CodeUri: ./src
+      Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          KMS_REGION: !Ref AWS::Region
+          KMS_KEY_ID: !Ref EncryptionDecryptionKey
+          TEAMS_HOOK_URL: !Ref TeamsWebHookUrl
+      Events:
+        Stream:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt AlertStream.Arn
+            StartingPosition: TRIM_HORIZON
+  TopicFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: TeamsFunction
+    Properties:
+      FunctionName: SungardAS-Alerts-Topic
+      Handler: index_sns.handler
+      Runtime: nodejs8.10
+      CodeUri: ./src
+      Role: !GetAtt MessengerLambdaFunctionIAMRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref AlertTopic
       Events:
         Stream:
           Type: Kinesis
@@ -229,7 +279,7 @@ Resources:
     Type: AWS::Logs::Destination
     DependsOn: SlackFunction
     Properties:
-      DestinationName: !Ref AlertKinesisDestinationName
+      DestinationName: !Ref CloudWatchLogDestinationName
       RoleArn: !GetAtt CWLtoKinesisRole.Arn
       TargetArn: !GetAtt AlertStream.Arn
       DestinationPolicy: !Join
@@ -241,8 +291,77 @@ Resources:
           - ":"
           - !Ref AWS::AccountId
           - ":destination:"
-          - !Ref AlertKinesisDestinationName
+          - !Ref CloudWatchLogDestinationName
           - "\"}]}"
+  AlertMessageTable:
+    Type: AWS::DynamoDB::Table
+    Condition: IsAlertMessageDynamoDBTableNameNull
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+  AlertTopic:
+    Type: AWS::SNS::Topic
+  AlertTopicSubscriptionCTO:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: !Ref AlertTopicSubEndpointForCTO
+      Protocol: "email"
+      TopicArn: !Ref AlertTopic
+  PermissionFunctionIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action:
+              - "sts:AssumeRole"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Policies:
+        -
+          PolicyName: "InlinePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*"
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:*"
+                  - "cloudwatchlogs:*"
+                Resource: "*"
+  AccountPermissionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Join
+        - "-"
+        - - "SungardAS-Alerts-Permission"
+          - !Ref CloudWatchLogDestinationName
+      Handler: index_account_permission.handler
+      Runtime: nodejs8.10
+      CodeUri: ./src
+      Role: !GetAtt PermissionFunctionIAMRole.Arn
+      Timeout: 300
 
 Outputs:
   LambdaFunction:
@@ -260,3 +379,12 @@ Outputs:
   CWLtoKinesisRoleArn:
     Description: "CloudwatchLogs to Kinesis Role ARN"
     Value: !GetAtt CWLtoKinesisRole.Arn
+  AlertMessageTableName:
+    Description: "Alert Message DynamoDB Table Name"
+    Value: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
+  CloudWatchDestinationArn:
+    Description: "CloudWatch Log Destination Arn"
+    Value: !GetAtt CloudWatchDestination.Arn
+  AccountPermissionFunction:
+    Description: "Account Permission Lambda Function ARN"
+    Value: !GetAtt AccountPermissionFunction.Arn

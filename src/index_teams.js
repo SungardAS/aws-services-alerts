@@ -6,23 +6,22 @@ var AWS = require('aws-sdk');
 const url = require('url');
 const https = require('https');
 
-const slackWebHookUrl = process.env.SLACK_HOOK_URL;
-const slackChannel = process.env.SLACK_CHANNEL;
+const teamsWebHookUrl = process.env.TEAMS_HOOK_URL;
 var hookUrl;
 
 console.log('Loading function');
 
 exports.handler = (event, context, callback) => {
   console.log('Received event:', JSON.stringify(event, null, 2));
-  if (!hookUrl && slackWebHookUrl && slackWebHookUrl !== '') {
-    const encryptedBuf = new Buffer(slackWebHookUrl, 'base64');
+  if (!hookUrl && teamsWebHookUrl && teamsWebHookUrl !== '') {
+    const encryptedBuf = new Buffer(teamsWebHookUrl, 'base64');
     const cipherText = { CiphertextBlob: encryptedBuf };
     const kms = new AWS.KMS({region:process.env.KMS_REGION});
     kms.decrypt(cipherText).promise().then(function(data) {
       hookUrl = `https://${data.Plaintext.toString('ascii')}`;
     }).catch(function(err) {
       console.log('Decrypt error, so just use raw hook url:', err);
-      hookUrl = `https://${slackWebHookUrl}`;
+      hookUrl = `https://${teamsWebHookUrl}`;
     }).then(function(data) {
       alert(event.Records, 0, function(err, data) {
         if (err) {
@@ -58,7 +57,7 @@ function alert(records, idx, callback) {
       var str = data.toString();
       console.log(`Decompressed record - ${str}`);
       const decompressed = JSON.parse(str);
-      sendSlackMessage(decompressed.logEvents, 0, decompressed.logGroup, function(err, data) {
+      sendTeamsMessage(decompressed.logEvents, 0, decompressed.logGroup, function(err, data) {
         if (err) {
           callback(err, null);
         }
@@ -75,7 +74,7 @@ function alert(records, idx, callback) {
   });
 }
 
-function sendSlackMessage(logEvents, idx, logGroup, callback) {
+function sendTeamsMessage(logEvents, idx, logGroup, callback) {
   var logEvent = logEvents[idx];
   var logMessage = null;
   try {
@@ -90,7 +89,7 @@ function sendSlackMessage(logEvents, idx, logGroup, callback) {
     // Container reuse, simply process the event with the key in memory
     processEvent(message, function(err, data) {
       if (err) {
-        console.log("failed to send logEvents[" + idx + "] to Slack : " + err);
+        console.log("failed to send logEvents[" + idx + "] to Teams : " + err);
         callback(err, null);
       }
       else {
@@ -98,7 +97,7 @@ function sendSlackMessage(logEvents, idx, logGroup, callback) {
           callback(null, true);
         }
         else {
-          sendSlackMessage(logEvents, idx, logGroup, callback);
+          sendTeamsMessage(logEvents, idx, logGroup, callback);
         }
       }
     });
@@ -137,14 +136,13 @@ function postMessage(message, callback) {
   postReq.end();
 }
 
-function processEvent(slackMessage, callback) {
-  slackMessage.channel = slackChannel;
-  postMessage(slackMessage, (response) => {
+function processEvent(teamsMessage, callback) {
+  postMessage(teamsMessage, (response) => {
     if (response.statusCode < 400) {
-      console.info('Message posted successfully');
+      console.info(`Message posted successfully: ${response.statusCode} - ${response.statusMessage}`);
       callback(null, null);
     } else if (response.statusCode < 500) {
-      console.error(`Error posting message to Slack API: ${response.statusCode} - ${response.statusMessage}`);
+      console.error(`Error posting message to Teams API: ${response.statusCode} - ${response.statusMessage}`);
       callback(null, null);  // Don't retry because the error is due to a problem with the request
     } else {
       // Let Lambda retry
@@ -155,44 +153,50 @@ function processEvent(slackMessage, callback) {
 
 function buildMessage(accountId, subject, message, images, titles) {
   var message = {
-    icon_emoji: ":postbox:",
-    "text": subject,
-    "attachments": [
+    "summary": "Alert Card",
+    "themeColor": "0078D7",
+    "title": subject,
+    "sections": [
       {
-        "text": message,
-        "color": "warning",
-        "fields": [
+        "activityTitle": "Created By SungardAS/aws-services",
+        "activitySubtitle": (new Date()).toString(),
+        "activityImage": "https://raw.githubusercontent.com/SungardAS/aws-services-lib/master/docs/images/logo.png",
+        "facts": [
           {
-              "title": "Account Id",
-              "value": accountId,
-              "short": true
-          },
-          /*{
-              "title": "Account Name",
-              "value": params.account.name,
-              "short": true
-          }*/
+            "name": "Account Id",
+            "value": accountId
+          }
         ],
-        "author_name": "Sungard Availability Services",
-        "footer": "Created By SungardAS/aws-services",
-        "footer_icon": "https://raw.githubusercontent.com/SungardAS/aws-services-lib/master/docs/images/logo.png",
-        //"ts": (new Date(params.account.createdAt)).getTime()
+        "text": message
       }
     ]
   };
+
   if (titles) {
     titles.forEach(function(title) {
       console.log(title);
-      message.attachments[0].fields.push(title);
+      message.sections[0].facts.push({"name": title.title, "value": title.value});
     });
   }
+
   if (images) {
     images.forEach(function(image) {
-      message.attachments.push({
-        "image_url": image,
-        "color": "warning"
+      message.sections.push({
+        "images": [
+          {
+            "image": image,
+            "title": ""
+          }
+        ],
+        "facts": [
+          {
+              "name": "Attachments",
+              "value": `[aa](${image})`
+          }
+        ]
       });
     });
-  }
+  };
+
   return message;
 }
