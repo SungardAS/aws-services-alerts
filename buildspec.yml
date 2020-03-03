@@ -5,7 +5,6 @@ phases:
       - cd src; npm install; cd ..
   build:
     commands:
-      - npm install time
       - aws cloudformation package
          --template-file template.yaml
          --s3-bucket $S3_BUCKET_NAME
