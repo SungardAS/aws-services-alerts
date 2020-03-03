@@ -6,10 +6,6 @@ Parameters:
     Type: String
     Default: "alertDestination"
     Description: Alert Kinesis Destination Name
-  AlertMessageDynamoDBTableName:
-    Type: String
-    Default: ""
-    Description: DynamoDB Table Name to Store Alert Messages
   SlackWebHookUrl:
     Type: String
     NoEcho: true
@@ -25,8 +21,7 @@ Parameters:
   AlertTopicSubEndpointForCTO:
     Type: String
     Description: Email Address for Alet Message Notification
-Conditions:
-  IsAlertMessageDynamoDBTableNameNull: !Equals [!Ref AlertMessageDynamoDBTableName, ""]
+
 Resources:
   EncryptionDecryptionKey:
     Type: AWS::KMS::Key
@@ -60,67 +55,6 @@ Resources:
             Principal:
               AWS: !GetAtt MessengerLambdaFunctionIAMRole.Arn
             Resource: '*'
-  LambdaFunctionIAMRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      Path: "/"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          -
-            Sid: "AllowLambdaServiceToAssumeRole"
-            Effect: "Allow"
-            Action:
-              - "sts:AssumeRole"
-            Principal:
-              Service:
-                - "lambda.amazonaws.com"
-      Policies:
-        -
-          PolicyName: "InlinePolicy"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              -
-                Effect: "Allow"
-                Action:
-                  - "logs:CreateLogGroup"
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
-                Resource: "arn:aws:logs:*:*:*"
-              -
-                Effect: "Allow"
-                Action:
-                  - "dynamodb:GetItem"
-                  - "dynamodb:PutItem"
-                  - "dynamodb:Query"
-                Resource: "arn:aws:dynamodb:*"
-              -
-                Effect: "Allow"
-                Action:
-                  - "kinesis:DescribeStream"
-                  - "kinesis:GetRecords"
-                  - "kinesis:GetShardIterator"
-                  - "kinesis:ListStreams"
-                Resource: !GetAtt AlertStream.Arn
-  LambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: SungardAS-Alerts
-      Handler: index.handler
-      Runtime: nodejs12.x
-      CodeUri: ./src
-      Role: !GetAtt LambdaFunctionIAMRole.Arn
-      Timeout: 60
-      Environment:
-        Variables:
-          DYNAMODB_TABLE_NAME: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
-      Events:
-        Stream:
-          Type: Kinesis
-          Properties:
-            Stream: !GetAtt AlertStream.Arn
-            StartingPosition: TRIM_HORIZON
   AlertStream:
     Type: AWS::Kinesis::Stream
     Properties:
@@ -293,21 +227,6 @@ Resources:
           - ":destination:"
           - !Ref CloudWatchLogDestinationName
           - "\"}]}"
-  AlertMessageTable:
-    Type: AWS::DynamoDB::Table
-    Condition: IsAlertMessageDynamoDBTableNameNull
-    Properties:
-      AttributeDefinitions:
-        -
-          AttributeName: "id"
-          AttributeType: "S"
-      KeySchema:
-        -
-          AttributeName: "id"
-          KeyType: "HASH"
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
   AlertTopic:
     Type: AWS::SNS::Topic
   AlertTopicSubscriptionCTO:
@@ -379,9 +298,6 @@ Outputs:
   CWLtoKinesisRoleArn:
     Description: "CloudwatchLogs to Kinesis Role ARN"
     Value: !GetAtt CWLtoKinesisRole.Arn
-  AlertMessageTableName:
-    Description: "Alert Message DynamoDB Table Name"
-    Value: !If [IsAlertMessageDynamoDBTableNameNull, !Ref AlertMessageTable, !Ref AlertMessageDynamoDBTableName]
   CloudWatchDestinationArn:
     Description: "CloudWatch Log Destination Arn"
     Value: !GetAtt CloudWatchDestination.Arn
