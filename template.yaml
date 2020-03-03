@@ -283,9 +283,6 @@ Resources:
       Timeout: 300
 
 Outputs:
-  LambdaFunction:
-    Description: "Lambda Function ARN"
-    Value: !GetAtt LambdaFunction.Arn
   SlackAlertLambdaFunction:
     Description: "Slack Alert Lambda Function ARN"
     Value: !GetAtt SlackFunction.Arn

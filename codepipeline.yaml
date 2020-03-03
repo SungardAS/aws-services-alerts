@@ -39,10 +39,6 @@ Parameters:
     Type: String
     Default: "alertDestination"
     Description: Alert Kinesis Destination Name
-  AlertMessageDynamoDBTableName:
-    Type: String
-    Default: ""
-    Description: DynamoDB Table Name to Store Alert Messages
   SlackWebHookUrl:
     Type: String
     NoEcho: true
@@ -364,8 +360,6 @@ Resources:
                     - ''
                     - - '{"CloudWatchLogDestinationName": "'
                       - !Ref CloudWatchLogDestinationName
-                      - '", "AlertMessageDynamoDBTableName": "'
-                      - !Ref AlertMessageDynamoDBTableName
                       - '", "SlackWebHookUrl": "'
                       - !Ref SlackWebHookUrl
                       - '", "SlackChannel": "'
