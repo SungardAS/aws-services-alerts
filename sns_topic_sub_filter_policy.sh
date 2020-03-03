@@ -1,0 +1,1 @@
+aws sns set-subscription-attributes --subscription-arn arn:aws:sns:us-east-1:089476987273:SungardAS-aws-services-alerts-AlertTopic-7TW510PIZWS0:d2697a1d-8bc8-4f77-b3ad-4948b5d0a058 --attribute-name FilterPolicy --attribute-value '{"awsid":["054649790173", "876224653878", "089476987273", "290093585298", "397316228965"]}'
