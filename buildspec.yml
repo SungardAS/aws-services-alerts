@@ -2,7 +2,6 @@ version: 0.1
 phases:
   install:
     commands:
-      - npm install time
       - cd src; npm install; cd ..
   build:
     commands:
