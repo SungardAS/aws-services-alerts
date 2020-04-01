@@ -9,3 +9,4 @@ samTemplate*
 package-lock.json
 *.setup
 tests
+~*

@@ -84,6 +84,10 @@ Resources:
                 Effect: "Allow"
                 Action:
                   - "logs:CreateLogGroup"
+                Resource: "*"
+              -
+                Effect: "Allow"
+                Action:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource: "arn:aws:logs:*:*:*"
@@ -96,10 +100,14 @@ Resources:
               -
                 Effect: "Allow"
                 Action:
+                  - "kinesis:ListStreams"
+                Resource: "*"
+              -
+                Effect: "Allow"
+                Action:
                   - "kinesis:DescribeStream"
                   - "kinesis:GetRecords"
                   - "kinesis:GetShardIterator"
-                  - "kinesis:ListStreams"
                 Resource: !GetAtt AlertStream.Arn
   SlackFunction:
     Type: AWS::Serverless::Function
