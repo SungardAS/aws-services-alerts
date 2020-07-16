@@ -51,9 +51,6 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Teams Webhook Url without 'https://'
-  AlertTopicSubEndpointForCTO:
-    Type: String
-    Description: Email Address for Alet Message Notification
 Conditions:
   HasCustomAuthorizerLambdaName: !Not [!Equals [!Ref CustomAuthorizerLambdaName, ""]]
   HasCustomAuthorizerIAMRoleName: !Not [!Equals [!Ref CustomAuthorizerIAMRoleName, ""]]
@@ -366,8 +363,6 @@ Resources:
                       - !Ref SlackChannel
                       - '", "TeamsWebHookUrl": "'
                       - !Ref TeamsWebHookUrl
-                      - '", "AlertTopicSubEndpointForCTO":"'
-                      - !Ref AlertTopicSubEndpointForCTO
                       - '"}'
                 TemplatePath: MyAppBuild::samTemplate.yaml
               RunOrder: 1

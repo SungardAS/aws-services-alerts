@@ -18,9 +18,6 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Teams Webhook Url without 'https://'
-  AlertTopicSubEndpointForCTO:
-    Type: String
-    Description: Email Address for Alet Message Notification
 
 Resources:
   EncryptionDecryptionKey:
@@ -237,12 +234,94 @@ Resources:
           - "\"}]}"
   AlertTopic:
     Type: AWS::SNS::Topic
-  AlertTopicSubscriptionCTO:
+  AlertTopicSubscriptionSteveFriday:
     Type: "AWS::SNS::Subscription"
     Properties:
-      Endpoint: !Ref AlertTopicSubEndpointForCTO
+      Endpoint: "stephen.friday@sungardas.com"
       Protocol: "email"
       TopicArn: !Ref AlertTopic
+      FilterPolicy:
+        awsid:
+          - "054649790173"
+          - "714270045944"
+          - "266593598212"
+          - "509168795332"
+          - "622821376834"
+          - "075043220707"
+          - "918501388972"
+          - "230102524127"
+          - "125550332883"
+          - "916471192480"
+          - "323323747981"
+          - "714649453784"
+          - "261299584329"
+          - "456133170642"
+          - "400611118919"
+          - "427004835786"
+          - "808331752250"
+          - "151864458670"
+          - "041802784822"
+          - "442294194136"
+  AlertTopicSubscriptionAlexOugh:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: "alex.ough@sungardas.com"
+      Protocol: "email"
+      TopicArn: !Ref AlertTopic
+      FilterPolicy:
+        awsid:
+          - "089476987273"
+          - "876224653878"
+  AlertTopicSubscriptionBobPeterson:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: "robert.peterson@sungardas.com"
+      Protocol: "email"
+      TopicArn: !Ref AlertTopic
+      FilterPolicy:
+        awsid:
+          - "735253318557"
+          - "467276579997"
+          - "282307656817"
+          - "326659710197"
+          - "978587332037"
+  AlertTopicSubscriptionShashankKhanolkar:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: "shashank.khanolkar@sungardas.com"
+      Protocol: "email"
+      TopicArn: !Ref AlertTopic
+      FilterPolicy:
+        awsid:
+          - "784442297447"
+          - "445819986646"
+          - "060433572191"
+          - "404016702201"
+          - "737385712994"
+  AlertTopicSubscriptionToddLoeppke:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: "todd.loeppke@sungardas.com"
+      Protocol: "email"
+      TopicArn: !Ref AlertTopic
+      FilterPolicy:
+        awsid:
+          - "290093585298"
+          - "546276914724"
+  AlertTopicSubscriptionYagneshPatel:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: "yagnesh.patel@sungardas.com"
+      Protocol: "email"
+      TopicArn: !Ref AlertTopic
+      FilterPolicy:
+        awsid:
+          - "992852660524"
+          - "445750067739"
+          - "846805764266"
+          - "839460476641"
+          - "736798198648"
+
   PermissionFunctionIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
